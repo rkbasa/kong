@@ -177,7 +177,7 @@ describe("helpers: assertions and modifiers", function()
       assert.error(function() assert.jsonbody({}) end)
       assert.error(function() assert.jsonbody() end)
     end)
-    it("succeeds on a response object", function()
+    it("succeeds on a response object on /request", function()
       local r = assert(client:send {
         method = "GET",
         path = "/request",
@@ -188,7 +188,7 @@ describe("helpers: assertions and modifiers", function()
       local json = assert.response(r).has.jsonbody()
       assert(json.url:find(helpers.mock_upstream_host), "expected a mock_upstream response")
     end)
-    it("succeeds on a mock_upstream request object", function()
+    it("succeeds on a mock_upstream request object on /request", function()
       local r = assert(client:send {
         method = "GET",
         path = "/request",
@@ -201,7 +201,7 @@ describe("helpers: assertions and modifiers", function()
       local json = assert.request(r).has.jsonbody()
       assert.equals("world", json.hello)
     end)
-    it("fails on a mock_upstream request object", function()
+    it("succeeds on a mock_upstream request object on /post", function()
       local r = assert(client:send {
         method = "POST",
         path = "/post",
@@ -211,12 +211,13 @@ describe("helpers: assertions and modifiers", function()
           ["Content-Type"] = "application/json"
         }
       })
-      assert.error(function() assert.request(r).has.jsonbody() end)
+      local json = assert.request(r).has.jsonbody()
+      assert.equals("world", json.hello)
     end)
   end)
 
   describe("header assertion", function()
-    it("#focus checks appropriate response headers", function()
+    it("checks appropriate response headers", function()
       local r = assert(client:send {
         method = "GET",
         path = "/request",

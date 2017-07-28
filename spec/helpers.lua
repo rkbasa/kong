@@ -439,7 +439,7 @@ luassert:register("modifier", "response", modifier_response)
 --- Generic modifier "request".
 -- Will set a "request" value in the assertion state, so following
 -- assertions will operate on the value set.
--- The request must be inside a 'response' from mockbin.org or httpbin.org
+-- The request must be inside a 'response' from mock_upstream
 -- @name request
 -- @param response results from `http_client:send` function. The request will
 -- be extracted from the response.
@@ -449,7 +449,7 @@ luassert:register("modifier", "response", modifier_response)
 local function modifier_request(state, arguments, level)
   local generic = "The assertion 'request' modifier takes a http response"
                 .. " object as input to decode the json-body returned by"
-                .. " httpbin.org/mockbin.org, to retrieve the proxied request."
+                .. " mock_upstream, to retrieve the proxied request."
 
   local res = arguments[1]
 
@@ -463,11 +463,9 @@ local function modifier_request(state, arguments, level)
   assert(body, "Expected the http response object to have a json encoded body,"
              .. " but decoding gave error '" .. tostring(err) .. "'. " .. generic)
 
-  -- check if it is a mockbin request
-  if lookup((res.headers or {}),"X-Powered-By") ~= "mockbin" then
-    -- not mockbin, so httpbin?
-    assert(type(body.url) == "string" and body.url:find("//httpbin.org", 1, true),
-           "Could not determine the response to be from either mockbin.com or httpbin.org")
+  -- check if it is a mock_upstream request
+  if lookup((res.headers or {}),"X-Powered-By") ~= "mock_upstream" then
+    error("Could not determine the response to be from mock_upstream")
   end
 
   rawset(state, "kong_request", body)
@@ -646,13 +644,7 @@ local function jsonbody(state, args)
     end
     return true, {json}
   else
-    assert(rawget(state, "kong_request").postData, "No post data found in the request. Only mockbin.com is supported!")
-    local json, err = cjson.decode(rawget(state, "kong_request").postData.text)
-    if not json then
-      table.insert(args, 1, "Error decoding: " .. tostring(err) .. "\nRequest body:" .. rawget(state, "kong_request").postData.text)
-      args.n = 1
-      return false
-    end
+    local json = assert(rawget(state, "kong_request").json, "No json data found in the request")
     return true, {json}
   end
 end
@@ -760,17 +752,13 @@ luassert:register("assertion", "queryparam", req_query_param,
 local function req_form_param(state, args)
   local param = args[1]
   local req = rawget(state, "kong_request")
-  assert(req, "'formparam' assertion can only be used with a mockbin/httpbin request object")
+  assert(req, "'formparam' assertion can only be used with a mock_upstream request object")
 
   local value
-  if req.postData then
-    -- mockbin request
-    value = lookup((req.postData or {}).params, param)
-  elseif type(req.url) == "string" and req.url:find("//httpbin.org", 1, true) then
-    -- hhtpbin request
+  if req.form then
     value = lookup(req.form or {}, param)
   else
-    error("Could not determine the request to be from either mockbin.com or httpbin.org")
+    error("Could not find param " .. param .. "on the request")
   end
   table.insert(args, 1, req)
   table.insert(args, 1, param)

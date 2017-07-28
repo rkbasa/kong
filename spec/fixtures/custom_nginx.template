@@ -490,7 +490,7 @@ http {
                 ngx.say(cjson.encode(t))
             }
         }
-        location ~ "^/(request|anything)/$" {
+        location ~ "^/(request|anything)" {
             content_by_lua_block {
                 local cjson = require "cjson"
                 local cjson_safe = require "cjson.safe"
