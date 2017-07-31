@@ -486,6 +486,72 @@ http {
                 ngx.say(cjson.encode(t))
             }
         }
+        location ~ "^/basic-auth$" {
+            return 301 /basic-auth/user/passwd;
+        }
+        location ~ "^/basic-auth/(?<username>[a-zA-Z]+)/(?<password>[a-zA-Z]+)$" {
+            access_by_lua_block {
+
+                local function retrieve_credentials(authorization_header)
+                  if not authorization_header then
+                    return
+                  end
+
+                  local iterator, iter_err = ngx.re.gmatch(authorization_header,
+                                                           "\\s*[Bb]asic\\s*(.+)")
+                  if not iterator then
+                    ngx.log(ngx.ERR, iter_err)
+                    return
+                  end
+
+                  local m, err = iterator()
+
+                  if err then
+                    ngx.log(ngx.ERR, err)
+                    return
+                  end
+
+                  if m and m[1] then
+                    local decoded_basic = ngx.decode_base64(m[1])
+
+                    if decoded_basic then
+                      local user_pass = utils.split(decoded_basic, ":")
+                      return user_pass[1], user_pass[2]
+                    end
+                  end
+                end
+
+                local headers = ngx.req.get_headers()
+
+                local given_username, given_password = retrieve_credentials(
+                  headers["proxy-authorization"]
+                )
+
+                if not given_username then
+                  local given_username, given_password = retrieve_credentials(
+                    headers["authorization"]
+                  )
+                end
+
+                if given_username ~= ngx.var.username or
+                   given_password ~= ngx.var.password then
+                  ngx.header["WWW-Authenticate"] = realm
+                  ngx.header['x-powered-by'] = "mock_upstream"
+                  ngx.header['X-POWERED-BY'] = "mock_upstream"
+                  return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                end
+            }
+            content_by_lua_block {
+                local cjson = require "cjson"
+                local t = {
+                  authenticated = true,
+                  user          = ngx.var.username,
+                }
+                ngx.header['x-powered-by'] = "mock_upstream"
+                ngx.header['X-POWERED-BY'] = "mock_upstream"
+                ngx.say(cjson.encode(t))
+            }
+        }
         location ~ "^/(request|anything)" {
             content_by_lua_block {
                 local cjson = require "cjson"

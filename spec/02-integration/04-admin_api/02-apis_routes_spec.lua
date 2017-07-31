@@ -67,7 +67,7 @@ describe("Admin API " .. kong_config.database, function()
             path = "/apis",
             body = {
               name = "my-api",
-              upstream_url = "http://httpbin.org",
+              upstream_url = helpers.mock_upstream_url,
               methods = "GET,POST,PATCH",
               hosts = "foo.api.com,bar.api.com",
               uris = "/foo,/bar",
