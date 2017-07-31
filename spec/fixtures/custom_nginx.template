@@ -312,6 +312,7 @@ http {
 
     server {
         listen 55555;
+        server_name mock_upstream;
 
         location /ws {
             content_by_lua_block {
@@ -368,11 +369,6 @@ http {
                 wb:send_close()
             }
         }
-    }
-
-    server {
-        listen 55555;
-        server_name mock_upstream;
 
         location /ip {
             access_by_lua_block {
