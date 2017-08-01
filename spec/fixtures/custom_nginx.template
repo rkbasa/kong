@@ -333,13 +333,16 @@ http {
                     ["/post"] = "Accepts a POST request and returns it in json format",
                     ["/anything"] = "Accepts any request and returns it in json format",
                     ["/request"] = "Alias to /anything",
+                    ["/delay/s"] = "Delay the response for s seconds",
                     ["/basic-auth/username/password"] = "Performs basic authentication with the given username/password",
                     ["/status/code"] = "Returns a response with the specified status code"
                   }
                 }
                 ngx.header['x-powered-by'] = "mock_upstream"
                 ngx.header['X-POWERED-BY'] = "mock_upstream"
-                ngx.say(cjson.encode(t))
+                if ngx.req.get_method() ~= "HEAD" then
+                  ngx.say(cjson.encode(t))
+                end
             }
         }
 
@@ -596,6 +599,59 @@ http {
                 ngx.say(cjson.encode(t))
             }
         }
+        location = "/delay" {
+            return 301 /delay/3;
+        }
+        location ~ "^/delay/(?<delay_seconds>\d{3})$" {
+            content_by_lua_block {
+                ngx.sleep(ngx.var.delay_seconds)
+
+                local cjson = require "cjson"
+                local cjson_safe = require "cjson.safe"
+                local headers = ngx.req.get_headers()
+                local origin = ngx.var.remote_addr
+                local args = ngx.req.get_uri_args()
+                local url = string.format("%s://%s%s", ngx.var.scheme,
+                                                       ngx.var.host,
+                                                       ngx.var.request_uri)
+                local json
+                local data = ""
+                local form = {}
+                local files = {} -- not supported
+                local ct = headers["content-type"]
+                if ct then
+                    ngx.req.read_body()
+                    if string.find(ct, "application/x-www-form-urlencoded",
+                       nil, true) then
+                        form = ngx.req.get_post_args()
+                    elseif string.find(ct, "application/json", nil, true) then
+                        local err
+                        data, err = ngx.req.get_body_data()
+                        if not data then
+                            ngx.log(ngx.ERR, "could not read body data: ", err)
+                            return ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+                        end
+                        -- httpbin just ignores decoding errors
+                        json = cjson_safe.decode(data)
+                    end
+                end
+                local t     = {
+                    method  = ngx.var.request_method,
+                    args    = args,
+                    data    = data,
+                    files   = files,
+                    form    = form,
+                    headers = headers,
+                    json    = json or cjson.null,
+                    origin  = origin,
+                    url     = url,
+                }
+                ngx.header['x-powered-by'] = "mock_upstream"
+                ngx.header['X-POWERED-BY'] = "mock_upstream"
+                ngx.say(cjson.encode(t))
+            }
+        }
+
         location ~ "^/status/(?<code>\d{3})$" {
             content_by_lua_block {
                 local code = tonumber(ngx.var.code)
