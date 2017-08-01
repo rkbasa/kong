@@ -314,7 +314,36 @@ http {
         listen 55555;
         server_name mock_upstream;
 
-        location /ws {
+        location = / {
+            access_by_lua_block {
+                if ngx.req.get_method() ~= "GET" then
+                    ngx.status = ngx.HTTP_NOT_ALLOWED
+                    ngx.header['x-powered-by'] = "mock_upstream"
+                    ngx.header['X-POWERED-BY'] = "mock_upstream"
+                    ngx.say("The method is not allowed for the requested URL")
+                    return ngx.exit(ngx.HTTP_NOT_ALLOWED)
+                end
+            }
+            content_by_lua_block {
+                local cjson = require "cjson"
+                local t     = {
+                  valid_routes = {
+                    ["/ws"] = "web sockets echo server",
+                    ["/get"] = "Accepts a GET request and returns it in json format",
+                    ["/post"] = "Accepts a POST request and returns it in json format",
+                    ["/anything"] = "Accepts any request and returns it in json format",
+                    ["/request"] = "Alias to /anything",
+                    ["/basic-auth/username/password"] = "Performs basic authentication with the given username/password",
+                    ["/status/code"] = "Returns a response with the specified status code"
+                  }
+                }
+                ngx.header['x-powered-by'] = "mock_upstream"
+                ngx.header['X-POWERED-BY'] = "mock_upstream"
+                ngx.say(cjson.encode(t))
+            }
+        }
+
+        location = /ws {
             content_by_lua_block {
                 local server = require "resty.websocket.server"
                 local wb, err = server:new{
@@ -370,39 +399,7 @@ http {
             }
         }
 
-        location /ip {
-            access_by_lua_block {
-                if ngx.req.get_method() ~= "GET" then
-                    ngx.status = ngx.HTTP_NOT_ALLOWED
-                    ngx.say("The method is not allowed for the requested URL")
-                    return ngx.exit(ngx.HTTP_NOT_ALLOWED)
-                end
-            }
-            content_by_lua_block {
-                local cjson = require "cjson"
-                ngx.say(cjson.encode {
-                    origin = ngx.var.remote_addr
-                })
-            }
-        }
-        location /headers {
-            access_by_lua_block {
-                if ngx.req.get_method() ~= "GET" then
-                    ngx.status = ngx.HTTP_NOT_ALLOWED
-                    ngx.say("The method is not allowed for the requested URL")
-                    return ngx.exit(ngx.HTTP_NOT_ALLOWED)
-                end
-            }
-            content_by_lua_block {
-                local cjson = require "cjson"
-                ngx.header['x-powered-by'] = "mock_upstream"
-                ngx.header['X-POWERED-BY'] = "mock_upstream"
-                ngx.say(cjson.encode {
-                    headers = ngx.req.get_headers()
-                })
-            }
-        }
-        location /get {
+        location = /get {
             access_by_lua_block {
                 if ngx.req.get_method() ~= "GET" then
                     ngx.status = ngx.HTTP_NOT_ALLOWED
@@ -431,7 +428,7 @@ http {
                 ngx.say(cjson.encode(t))
             }
         }
-        location /post {
+        location = /post {
             access_by_lua_block {
                 if ngx.req.get_method() ~= "POST" then
                     ngx.status = ngx.HTTP_NOT_ALLOWED
