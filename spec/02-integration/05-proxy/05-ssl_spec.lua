@@ -22,13 +22,13 @@ describe("SSL", function()
     assert(helpers.dao.apis:insert {
       name = "global-cert",
       hosts = { "global.com" },
-      upstream_url = "http://httpbin.org"
+      upstream_url = helpers.mock_upstream_url
     })
 
     assert(helpers.dao.apis:insert {
       name = "api-1",
       hosts = { "example.com", "ssl1.com" },
-      upstream_url = "http://httpbin.org",
+      upstream_url = helpers.mock_upstream_url,
       https_only = true,
       http_if_terminated = true,
     })
@@ -36,7 +36,7 @@ describe("SSL", function()
     assert(helpers.dao.apis:insert {
       name = "api-2",
       hosts = { "ssl2.com" },
-      upstream_url = "http://httpbin.org",
+      upstream_url = helpers.mock_upstream_url,
       https_only = true,
       http_if_terminated = false,
     })
