@@ -37,6 +37,7 @@ describe("core entities are invalidated with db: " .. kong_conf.database, functi
       admin_ssl             = false,
       db_update_frequency   = POLL_INTERVAL,
       db_update_propagation = db_update_propagation,
+      nginx_conf            = "spec/fixtures/custom_nginx.template",
     })
 
     assert(helpers.start_kong {
@@ -118,7 +119,7 @@ describe("core entities are invalidated with db: " .. kong_conf.database, functi
         body   = {
           name         = "example",
           hosts        = "example.com",
-          upstream_url = "http://httpbin.org",
+          upstream_url = helpers.mock_upstream_url,
         },
         headers = {
           ["Content-Type"] = "application/json",
@@ -157,7 +158,7 @@ describe("core entities are invalidated with db: " .. kong_conf.database, functi
         body   = {
           name         = "example",
           hosts        = "example.com",
-          upstream_url = "http://httpbin.org/status/418",
+          upstream_url = helpers.mock_upstream_url .. "/status/418",
         },
         headers = {
           ["Content-Type"] = "application/json",
@@ -428,7 +429,7 @@ describe("core entities are invalidated with db: " .. kong_conf.database, functi
         body   = {
           name  = "dummy-api",
           hosts = "dummy.com",
-          upstream_url = "http://httpbin.org",
+          upstream_url = helpers.mock_upstream_url,
         },
         headers = {
           ["Content-Type"] = "application/json",
